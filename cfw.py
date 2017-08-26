@@ -53,7 +53,7 @@ class ref:
 
 def _set(node, path, value):
     if len(path)==0:
-        raise ValueError, "Empty path"
+        raise ValueError("Empty path")
     for step in path[:-1]:
         if step not in node:
             node[step] = {}
@@ -75,7 +75,7 @@ def merge(dct):
     for uri,v in dct.items():
         path = _url2pat(uri)
         if len(path)==0:
-            raise None, "Empty uri in cfw.merge"
+            raise Exception("Empty uri in cfw.merge")
         pos = _root
         for step in path[:-1]:
             if pos.has_key(step):
@@ -85,8 +85,8 @@ def merge(dct):
                 pos[step] = new
                 pos = new
             else:
-                raise None, "Step %s in uri leads to %s" \
-                      % (step,type(pos))
+                raise Exception("Step %s in uri leads to %s"
+                                % (step,type(pos)))
         step = path[-1]
         pos[step] = v
 
@@ -114,7 +114,7 @@ def parse_config(filenames):
             if name=='__class__':
                 klass = value
             elif name.startswith('__'):
-                raise ValueError, 'Unknown special name %s' % repr(name)
+                raise ValueError('Unknown special name %r' % name)
             else:
                 if value.startswith('@'):
                     # Reference to another item
@@ -126,7 +126,7 @@ def parse_config(filenames):
                 vals.append(value)
         if sect=='GLOBAL':
             if klass is not None:
-                raise ValueError, '__class__ may not be set at GLOBAL level'
+                raise ValueError('__class__ may not be set at GLOBAL level')
             for name, value in kw.items():
                 setitem(name, value)
         elif klass is None  or  klass=='dict':
@@ -168,7 +168,7 @@ def get(uri, default=_fail_if_not_found):
     try:
         value = xget(uri)
         return value
-    except CfwNotFound, e:
+    except CfwNotFound:
         if default is not _fail_if_not_found:
             return default
         raise
@@ -177,15 +177,15 @@ def xget(uri):
 #    print "cfw.get",uri
     path = _url2path(uri)
     if len(path)==0:
-        raise ValueError, "Empty uri in cfw.get"
+        raise ValueError("Empty uri in cfw.get")
     pos = _root
     for step in path[:-1]:
         if not pos.has_key(step):
-            raise CfwNotFound, 'Unknown cfw path: %s' % uri
+            raise CfwNotFound('Unknown cfw path: %s' % uri)
         pos = pos[step]
     step = path[-1]
     if not pos.has_key(step):
-        raise CfwNotFound, 'Unknown cfw path: %s' % uri
+        raise CfwNotFound('Unknown cfw path: %s' % uri)
     item = pos[step]
     inst = _cfw(item, uri)
     pos[step] = inst
@@ -216,12 +216,20 @@ def unrepr(s):
         return False
     if s == 'None':
         return None
-    if s.startswith("'") and s.endswith("'"):
-        # FIXME escape chars
-        return s[1:-1]
-    if s.startswith('"') and s.endswith('"'):
-        # FIXME escape chars
-        return s[1:-1]
+    if s[:1] in ("'",'"'):
+        for q in ('"""',"'''",'"',"'"):
+            if s.startswith(q) and s.endswith(q):
+                # FIXME should disallow e.g. "a"b"
+                lq = len(q)
+                return s[lq:-lq].decode('string_escape')
+        raise ValueError('Unbalanced quotes')
+    if s[:2] in ("u'",'u"'):
+        for q in ('"""',"'''",'"',"'"):
+            if s[1:].startswith(q) and s.endswith(q):
+                # FIXME should disallow e.g. u"a"b"
+                lq = len(q)
+                return unicode(s[1+lq:-lq], 'unicode_escape')
+        raise ValueError('Unbalanced quotes')
     return s
 
 if __name__=='__main__':
@@ -232,5 +240,5 @@ if __name__=='__main__':
     parse_config('test.ini')
     import sys
     for arg in sys.argv[1:]:
-        print get(arg)
-    print _root.keys()
+        print(get(arg))
+    print(_root.keys())
