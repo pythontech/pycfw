@@ -4,7 +4,10 @@
 #=======================================================================
 import os
 import logging
-import urllib
+try:
+    from urllib.parse import quote
+except ImportError:             # PY2
+    from urllib import quote
 #try:
 #    from cherrypy.lib import unrepr
 #except ImportError:
@@ -27,7 +30,7 @@ class obj:
     def instantiate(self,uri='?'):
         _logger.debug("instantiating %s (%s)", uri, self.classname)
 #        print " instantiate", self.classname, self.args, self.kw
-        if _classes.has_key(self.classname):
+        if self.classname in _classes:
             # Already found
             cls = _classes[self.classname]
         else:
@@ -78,7 +81,7 @@ def merge(dct):
             raise Exception("Empty uri in cfw.merge")
         pos = _root
         for step in path[:-1]:
-            if pos.has_key(step):
+            if step in pos:
                 pos = pos[step]
             elif type(pos) is dict:
                 new = dict()
@@ -100,7 +103,10 @@ def parse_config(filenames):
     Value is converted to int or float if possible.
     Value beginning with '@' is taken as ref.
     '''
-    from ConfigParser import SafeConfigParser
+    try:
+        from configparser import SafeConfigParser
+    except ImportError:         # PY2
+        from ConfigParser import SafeConfigParser
     p = SafeConfigParser()
     # Don't convert item names to lowercase
     p.optionxform = str
@@ -143,9 +149,9 @@ def parse_config(filenames):
 def _cfw(any, uri='?'):
     '''Instantiate arbitrary item'''
     if type(any) is tuple:
-        val = tuple(map(_cfw, any))
+        val = tuple([_cfw(x)  for x in any])
     elif type(any) is list:
-        val = map(_cfw, any)
+        val = [_cfw(x)  for x in any]
     elif type(any) is dict:
         val = {}
         for n,v in any.items():
@@ -180,11 +186,11 @@ def xget(uri):
         raise ValueError("Empty uri in cfw.get")
     pos = _root
     for step in path[:-1]:
-        if not pos.has_key(step):
+        if step not in pos:
             raise CfwNotFound('Unknown cfw path: %s' % uri)
         pos = pos[step]
     step = path[-1]
-    if not pos.has_key(step):
+    if step not in pos:
         raise CfwNotFound('Unknown cfw path: %s' % uri)
     item = pos[step]
     inst = _cfw(item, uri)
@@ -193,7 +199,7 @@ def xget(uri):
     return inst
 
 def _url2path(url):
-    return map(urllib.quote, url.split('/'))
+    return [quote(x) for x in url.split('/')]
 
 # Basic converter of string to value
 def unrepr(s):
@@ -221,14 +227,14 @@ def unrepr(s):
             if s.startswith(q) and s.endswith(q):
                 # FIXME should disallow e.g. "a"b"
                 lq = len(q)
-                return s[lq:-lq].decode('string_escape')
+                return s[lq:-lq].encode('ascii').decode('unicode_escape')
         raise ValueError('Unbalanced quotes')
     if s[:2] in ("u'",'u"'):
         for q in ('"""',"'''",'"',"'"):
             if s[1:].startswith(q) and s.endswith(q):
                 # FIXME should disallow e.g. u"a"b"
                 lq = len(q)
-                return unicode(s[1+lq:-lq], 'unicode_escape')
+                return s[1+lq:-lq].encode('ascii').decode('unicode_escape')
         raise ValueError('Unbalanced quotes')
     return s
 
