@@ -104,10 +104,10 @@ def parse_config(filenames):
     Value beginning with '@' is taken as ref.
     '''
     try:
-        from configparser import SafeConfigParser
+        from configparser import ConfigParser
     except ImportError:         # PY2
-        from ConfigParser import SafeConfigParser
-    p = SafeConfigParser()
+        from ConfigParser import SafeConfigParser as ConfigParser
+    p = ConfigParser()
     # Don't convert item names to lowercase
     p.optionxform = str
     p.read([os.path.expanduser(f) for f in filenames])
@@ -241,7 +241,7 @@ def unrepr(s):
 if __name__=='__main__':
     set(abc = 123,
         defg = 'hij',
-        jkl = obj('string.split','m.n','.'),
+        jkl = obj('string.capwords','mag.num','.'),
         cmd = obj('cmd.Cmd', completekey='A'))
     parse_config('test.ini')
     import sys
